@@ -8,11 +8,11 @@ import json
 
 app = FastAPI()
 
-# Load secrets from Render Environment Variables
-API_KEY = os.getenv("cc_ee8a71b0cccddc0dbe0ec0783a6d5aea")
-API_SECRET = os.getenv("a431cc8b83239afb7d4bd7691ded4de69a916e9d9203eafbf47268a99a4d5da6")
-API_PASSPHRASE = os.getenv("Blue3229")
-WEBHOOK_PASSWORD = os.getenv("Tb313")
+# Load secrets from environment variables
+API_KEY = os.getenv("API_KEY")
+API_SECRET = os.getenv("API_SECRET")
+API_PASSPHRASE = os.getenv("API_PASSPHRASE")
+WEBHOOK_PASSWORD = os.getenv("WEBHOOK_PASSWORD")
 
 @app.get("/")
 def read_root():
@@ -31,7 +31,7 @@ async def webhook(request: Request):
     side = data.get("signal")  # 'buy' or 'sell'
     symbol = data.get("symbol")  # like 'BTCUSDT'
     price = data.get("price")  # optional
-    quantity = "0.001"
+    quantity = "0.001"  # default quantity
 
     # Create timestamp
     timestamp = str(int(time.time() * 1000))
