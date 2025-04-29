@@ -8,18 +8,22 @@ import json
 
 app = FastAPI()
 
-# Load environment variables
+# Load secrets from Render Environment Variables
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
 API_PASSPHRASE = os.getenv("API_PASSPHRASE")
 WEBHOOK_PASSWORD = os.getenv("WEBHOOK_PASSWORD")
 
-# Simple health check
+# Log loaded environment variables (for debugging - optional)
+print(f"API_KEY: {API_KEY}")
+print(f"API_SECRET: {API_SECRET}")
+print(f"API_PASSPHRASE: {API_PASSPHRASE}")
+print(f"WEBHOOK_PASSWORD: {WEBHOOK_PASSWORD}")
+
 @app.get("/")
 def read_root():
     return {"message": "CoinCatch Bot Running"}
 
-# Webhook endpoint
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
@@ -27,37 +31,30 @@ async def webhook(request: Request):
     # Optional password check
     if WEBHOOK_PASSWORD:
         if data.get("password") != WEBHOOK_PASSWORD:
-            print("Invalid password attempt!")
             return {"status": "error", "message": "Invalid password"}
 
-    # Check important fields
+    # Get trading info
     side = data.get("signal")  # 'buy' or 'sell'
-    symbol = data.get("symbol")
-    price = data.get("price")
+    symbol = data.get("symbol")  # example 'BTCUSDT'
+    quantity = "0.001"  # you can adjust this as needed
 
-    if not all([side, symbol, price]):
-        print("Missing required fields in webhook payload")
-        return {"status": "error", "message": "Missing signal, symbol, or price"}
+    if not side or not symbol:
+        return {"status": "error", "message": "Missing side or symbol in alert"}
 
-    quantity = "0.001"  # you can adjust quantity if needed
-
-    # Create order payload
+    # Create timestamp
     timestamp = str(int(time.time() * 1000))
-    order_payload = {
+
+    # Build the order payload (no price = market order)
+    body = {
         "symbol": symbol,
         "side": side,
         "quantity": quantity,
-        "price": price,
         "timestamp": timestamp
     }
-    message = json.dumps(order_payload)
 
-    # Make sure secrets are loaded
-    if not all([API_KEY, API_SECRET, API_PASSPHRASE]):
-        print("Environment variables not loaded properly")
-        return {"status": "error", "message": "Server configuration error"}
+    message = json.dumps(body)
 
-    # Create signature
+    # Create HMAC SHA256 signature
     signature = hmac.new(
         API_SECRET.encode(),
         message.encode(),
@@ -71,24 +68,9 @@ async def webhook(request: Request):
         "Content-Type": "application/json"
     }
 
-    # Send order to CoinCatch
     try:
         response = requests.post("https://api.coincatch.com/v1/order", headers=headers, data=message)
         response.raise_for_status()
-
-        resp_json = response.json()
-
-        # Check if API returns an error inside 200 OK
-        if "error" in resp_json:
-            print(f"ORDER ERROR: {resp_json['error']}")
-            return {"status": "error", "message": resp_json['error']}
-
-        print(f"SUCCESS: Order sent to CoinCatch for {symbol} {side} at {price}")
-        return {"status": "success", "response": resp_json}
-
-    except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP ERROR: {http_err.response.status_code} {http_err.response.text}")
-        return {"status": "error", "message": f"HTTP error {http_err.response.status_code}"}
+        return {"status": "success", "response": response.json()}
     except Exception as e:
-        print(f"GENERAL ERROR: {str(e)}")
         return {"status": "error", "message": str(e)}
