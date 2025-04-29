@@ -12,7 +12,7 @@ app = FastAPI()
 API_KEY = os.getenv("cc_ee8a71b0cccddc0dbe0ec0783a6d5aea")
 API_SECRET = os.getenv("a431cc8b83239afb7d4bd7691ded4de69a916e9d9203eafbf47268a99a4d5da6")
 API_PASSPHRASE = os.getenv("Blue3229")
-WEBHOOK_PASSWORD = os.getenv("WEBHOOK_PASSWORD")
+WEBHOOK_PASSWORD = os.getenv("Tb313")
 
 @app.get("/")
 def read_root():
