@@ -1,14 +1,14 @@
 from fastapi import FastAPI, Request
 import os
-import requests
 import hmac
 import hashlib
 import time
 import json
+import requests
 
 app = FastAPI()
 
-# Load secrets from environment
+# Environment Variables (set these in Render)
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
 API_PASSPHRASE = os.getenv("API_PASSPHRASE")
@@ -16,45 +16,44 @@ WEBHOOK_PASSWORD = os.getenv("WEBHOOK_PASSWORD")
 
 @app.get("/")
 def read_root():
-    return {"message": "CoinCatch Bot Running"}
+    return {"status": "CoinCatch Bot Live"}
 
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
 
-    # Verify TradingView password
+    # Validate TradingView password
     if WEBHOOK_PASSWORD and data.get("password") != WEBHOOK_PASSWORD:
         return {"status": "error", "message": "Invalid password"}
 
-    # Extract fields
-    side = data.get("side")         # "buy" or "sell"
-    symbol = data.get("symbol")     # like "BTCUSDT"
-    quantity = data.get("quantity") # like "0.0005"
-
-    if not side or not symbol or not quantity:
-        return {"status": "error", "message": "Missing side, symbol, or quantity"}
+    # Parse fields
+    symbol = data.get("symbol", "XRPUSDT_UMCBL")
+    marginCoin = data.get("marginCoin", "USDT")
+    side = data.get("side", "open_long")  # open_long or open_short
+    orderType = data.get("orderType", "market")
+    quantity = data.get("size", "30")  # YOU can change this per trade
+    timeInForceValue = data.get("timeInForceValue", "normal")
 
     timestamp = str(int(time.time() * 1000))
 
-    # Build the order payload
     payload = {
         "symbol": symbol,
+        "marginCoin": marginCoin,
+        "size": quantity,
         "side": side,
-        "orderType": "market",
-        "quantity": quantity,
-        "reduceOnly": False,          # Important: allows flipping, not just closing
+        "orderType": orderType,
+        "timeInForceValue": timeInForceValue,
         "timestamp": timestamp
     }
 
-    # Prepare signature
     message = json.dumps(payload)
+
     signature = hmac.new(
         API_SECRET.encode(),
         message.encode(),
         hashlib.sha256
     ).hexdigest()
 
-    # Headers for CoinCatch API
     headers = {
         "X-API-KEY": API_KEY,
         "X-API-PASSPHRASE": API_PASSPHRASE,
@@ -63,9 +62,14 @@ async def webhook(request: Request):
     }
 
     try:
-        # Send market order
         response = requests.post("https://api.coincatch.com/v1/order", headers=headers, data=message)
         response.raise_for_status()
-        return {"status": "success", "response": response.json()}
+        return {
+            "status": "success",
+            "response": response.json()
+        }
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {
+            "status": "error",
+            "message": str(e)
+        }
