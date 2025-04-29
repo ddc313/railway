@@ -6,15 +6,9 @@ import hashlib
 import time
 import json
 
-# DEBUG: Print your environment variables to make sure they are loaded
-print("API_KEY:", os.getenv("API_KEY"))
-print("API_SECRET:", os.getenv("API_SECRET"))
-print("API_PASSPHRASE:", os.getenv("API_PASSPHRASE"))
-print("WEBHOOK_PASSWORD:", os.getenv("WEBHOOK_PASSWORD"))
-
 app = FastAPI()
 
-# Load secrets from Environment Variables
+# Load secrets from environment variables
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
 API_PASSPHRASE = os.getenv("API_PASSPHRASE")
@@ -28,30 +22,26 @@ def read_root():
 async def webhook(request: Request):
     data = await request.json()
 
-    # Check password
-    if WEBHOOK_PASSWORD:
-        if data.get("password") != WEBHOOK_PASSWORD:
-            return {"status": "error", "message": "Invalid password"}
+    # Verify webhook password
+    if WEBHOOK_PASSWORD and data.get("password") != WEBHOOK_PASSWORD:
+        return {"status": "error", "message": "Invalid password"}
 
-    # Extract trading signal
+    # Extract trading details
     side = data.get("signal")  # 'buy' or 'sell'
     symbol = data.get("symbol")  # like 'BTCUSDT'
-    price = data.get("price")  # optional
-    quantity = "0.001"  # example quantity
-
-    # Create timestamp
-    timestamp = str(int(time.time() * 1000))
+    price = data.get("price")
+    quantity = "0.001"  # You can adjust quantity if needed
 
     # Build order payload
-    body = {
+    timestamp = str(int(time.time() * 1000))
+    order_payload = {
         "symbol": symbol,
         "side": side,
         "quantity": quantity,
         "price": price,
         "timestamp": timestamp
     }
-
-    message = json.dumps(body)
+    message = json.dumps(order_payload)
 
     # Create HMAC signature
     signature = hmac.new(
@@ -68,8 +58,12 @@ async def webhook(request: Request):
     }
 
     try:
-        response = requests.post("https://api.coincatch.com/v1/order", headers=headers, data=message)
+        response = requests.post(
+            "https://api.coincatch.com/v1/order",
+            headers=headers,
+            data=message
+        )
         response.raise_for_status()
-        return {"status": "success", "response": response.json()}
+        return {"status": "success", "data": response.json()}
     except Exception as e:
         return {"status": "error", "message": str(e)}
