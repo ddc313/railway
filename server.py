@@ -6,9 +6,15 @@ import hashlib
 import time
 import json
 
+# DEBUG: Print your environment variables to make sure they are loaded
+print("API_KEY:", os.getenv("API_KEY"))
+print("API_SECRET:", os.getenv("API_SECRET"))
+print("API_PASSPHRASE:", os.getenv("API_PASSPHRASE"))
+print("WEBHOOK_PASSWORD:", os.getenv("WEBHOOK_PASSWORD"))
+
 app = FastAPI()
 
-# Load secrets from environment variables
+# Load secrets from Environment Variables
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
 API_PASSPHRASE = os.getenv("API_PASSPHRASE")
@@ -22,16 +28,16 @@ def read_root():
 async def webhook(request: Request):
     data = await request.json()
 
-    # Check password (optional security from TradingView)
+    # Check password
     if WEBHOOK_PASSWORD:
         if data.get("password") != WEBHOOK_PASSWORD:
             return {"status": "error", "message": "Invalid password"}
 
-    # Extract trading signal from alert
+    # Extract trading signal
     side = data.get("signal")  # 'buy' or 'sell'
     symbol = data.get("symbol")  # like 'BTCUSDT'
     price = data.get("price")  # optional
-    quantity = "0.001"  # default quantity
+    quantity = "0.001"  # example quantity
 
     # Create timestamp
     timestamp = str(int(time.time() * 1000))
