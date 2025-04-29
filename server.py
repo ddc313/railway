@@ -1,25 +1,27 @@
 from fastapi import FastAPI, Request
-import uvicorn
+import os
 
 app = FastAPI()
+
+# Optional security check
+WEBHOOK_PASSWORD = os.getenv('WEBHOOK_PASSWORD')
+
+@app.get("/")
+def read_root():
+    return {"message": "CoinCatch Bot Running!"}
 
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
-    print("Received webhook:", data)
+    
+    # If you set a webhook password, validate it
+    if WEBHOOK_PASSWORD:
+        if data.get("password") != WEBHOOK_PASSWORD:
+            return {"code": 403, "message": "Forbidden: Incorrect password"}
+    
+    # Log received data
+    print("Received data:", data)
 
-    action = data.get("action")
-    symbol = data.get("symbol", "BTCUSDT")
-
-    if action == "buy":
-        print(f"Execute BUY order for {symbol}")
-        # TODO: Add CoinCatch buy logic here
-
-    elif action == "sell":
-        print(f"Execute SELL order for {symbol}")
-        # TODO: Add CoinCatch sell logic here
-
-    return {"message": "Webhook received"}
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Here, you would add logic to send the signal to CoinCatch, Binance, Bybit, etc.
+    # For now, just return a success
+    return {"code": 200, "message": "Signal received!"}
